@@ -932,13 +932,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * is already there is checked here, against the playlist's open page or a
      * fresh fetch of it, and a real duplicate is never sent.
      *
-     * The duplicate checks run side by side, a few at a time: each one can be
-     * a whole playlist's worth of pages when that playlist isn't open, and
-     * waiting for them one after another made ticking three big playlists
-     * take three times as long as ticking one. The edits themselves still go
-     * one at a time, since a burst of parallel edits is what YouTube answers
-     * with a rate limit. A track already in one of them is skipped there and
-     * still added to the rest.
+     * One at a time rather than all at once: each check reads the playlist it
+     * is about, and a burst of parallel edits is exactly what YouTube answers
+     * with a rate limit. The duplicate check is per playlist, so a track
+     * already in one of them is skipped there and still added to the rest.
      */
     fun addToPlaylists(
         playlists: List<UserPlaylist>,
@@ -947,14 +944,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     ) {
         if (!requireSignIn() || playlists.isEmpty()) return
         viewModelScope.launch {
-            val gate = Semaphore(DUPLICATE_CHECK_PARALLELISM)
-            val present = coroutineScope {
-                playlists.map { playlist -> async { gate.withPermit { containsSong(playlist, song) } } }
-                    .map { it.await() }
-            }
-            val outcomes = playlists.zip(present).map { (playlist, there) ->
-                if (there) AddOutcome.ALREADY_THERE else addOne(playlist, song)
-            }
+            val outcomes = playlists.map { addOne(it, song) }
             onResult(
                 outcomes.count { it == AddOutcome.ADDED },
                 outcomes.count { it == AddOutcome.ALREADY_THERE },
@@ -965,20 +955,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private enum class AddOutcome { ADDED, ALREADY_THERE, FAILED }
 
-    /**
-     * Whether [playlist] already has [song], read off its open page when it is
-     * open and fetched otherwise. A fetch that fails answers no, so the add is
-     * still tried rather than silently skipped.
-     */
-    private suspend fun containsSong(playlist: UserPlaylist, song: Song): Boolean {
+    private suspend fun addOne(playlist: UserPlaylist, song: Song): AddOutcome {
         val openSongs = (_detailStack.value.firstOrNull { it.browseId == playlist.browseId }
             ?.songs as? UiState.Success)?.data
         val known = openSongs
             ?: YtMusicRepository.allSongs(playlist.browseId).getOrNull()
-        return known?.any { it.videoId == song.videoId } == true
-    }
-
-    private suspend fun addOne(playlist: UserPlaylist, song: Song): AddOutcome {
+        if (known?.any { it.videoId == song.videoId } == true) return AddOutcome.ALREADY_THERE
         return YtMusicRepository.addToPlaylist(playlist.playlistId, listOf(song.videoId)).fold(
             onSuccess = { added ->
                 libraryStale = true
@@ -2320,9 +2302,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         /** How many Spotify tracks are looked up on YouTube Music at once. */
         private const val SPOTIFY_MATCH_PARALLELISM = 6
-
-        /** How many playlists [addToPlaylists] reads at once — see there. */
-        private const val DUPLICATE_CHECK_PARALLELISM = 3
 
         /**
          * How long a keystroke waits before the typeahead is asked about it.
