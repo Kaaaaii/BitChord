@@ -2009,10 +2009,14 @@ private fun BrowseType.localizedLabel(): String? = when (this) {
  * How long the page plays for — "41 min", "1h 25m" — summed over the rows
  * on it, or null when none of them carry a duration. A playlist still filling
  * in counts up with it, so the figure is never ahead of the list it sits over.
+ *
+ * The sum is kept until the list itself changes, so the header redrawing for
+ * anything else — the palette arriving, the search opening — doesn't walk a
+ * thousand rows again to get the same number.
  */
 @Composable
 private fun List<Song>.playtime(): String? {
-    val minutes = sumOf { it.durationMillis() } / 60_000
+    val minutes = remember(this) { sumOf { it.durationMillis() } / 60_000 }
     return when {
         minutes <= 0 -> null
         minutes < 60 -> stringResource(R.string.minutes_short, minutes.toInt())
