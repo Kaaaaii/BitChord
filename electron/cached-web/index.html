@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      // The extension trusts https://bitchord.in only (web/extension/site.config.ts),
+      // so www goes there before anything loads, keeping its path and query.
+      if (location.hostname === 'www.bitchord.in') location.replace('https://bitchord.in' + location.pathname + location.search + location.hash);
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1f1f1f" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <title>BitChord</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- DM Sans is the app's typeface (web/docs/apple-music-dom.md, "Font"). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..800;1,9..40,400..800&display=swap"
+    />
+    <script type="module" crossorigin src="./assets/index-BIVRuiJb.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-XKyaHtl9.js">
+    <link rel="modulepreload" crossorigin href="./assets/react-zfZ2Wog0.js">
+    <link rel="modulepreload" crossorigin href="./assets/useExtension-Ch14vlkC.js">
+    <link rel="modulepreload" crossorigin href="./assets/preload-helper-BLdHbfdN.js">
+    <link rel="modulepreload" crossorigin href="./assets/bridge-CpGJnlvd.js">
+    <link rel="modulepreload" crossorigin href="./assets/trackLog-DzwgLkDc.js">
+    <link rel="modulepreload" crossorigin href="./assets/innertube-BDpvHql2.js">
+    <link rel="modulepreload" crossorigin href="./assets/api-pCU7nZjX.js">
+    <link rel="modulepreload" crossorigin href="./assets/queries-C-37Axht.js">
+    <link rel="modulepreload" crossorigin href="./assets/PageHeader-DPIMKA-f.js">
+    <link rel="modulepreload" crossorigin href="./assets/createLucideIcon-i45FAAh8.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-EKgT3Nwq.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

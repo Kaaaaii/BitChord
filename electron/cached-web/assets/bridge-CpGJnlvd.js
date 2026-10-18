@@ -1,0 +1,1 @@
+import{a as e,t}from"./useExtension-Ch14vlkC.js";function n(){return e.getQueryData(t)?.bridge??null}export{n as t};

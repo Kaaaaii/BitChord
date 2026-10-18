@@ -1,0 +1,23 @@
+{
+  "name": "bitchord-desktop",
+  "version": "1.0.0",
+  "description": "Desktop Electron shell for BitChord with native extension bridge, Discord RPC, and media controls",
+  "main": "dist/main/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch --onSuccess \"electron .\"",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit",
+    "cache-web": "node scripts/cache-web.mjs"
+  },
+  "dependencies": {
+    "@xhayper/discord-rpc": "^1.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "electron": "^34.2.0",
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3"
+  }
+}
