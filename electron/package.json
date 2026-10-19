@@ -2,6 +2,9 @@
   "name": "bitchord-desktop",
   "version": "1.0.0",
   "description": "Desktop Electron shell for BitChord with native extension bridge, Discord RPC, and media controls",
+  "author": "BitChord Team <team@bitchord.app>",
+  "homepage": "https://bitchord-8bw.pages.dev",
+  "desktopName": "bitchord.desktop",
   "main": "dist/main/index.js",
   "type": "module",
   "scripts": {
@@ -9,6 +12,9 @@
     "dev": "tsup --watch",
     "start": "electron .",
     "dist": "tsup && electron-builder --win",
+    "dist:linux": "tsup && electron-builder --linux",
+    "dist:linux:archive": "tsup && electron-builder --linux tar.gz",
+    "dist:all": "tsup && electron-builder -wl",
     "dist:dir": "tsup && electron-builder --win --dir",
     "typecheck": "tsc --noEmit",
     "cache-web": "node scripts/cache-web.mjs"
@@ -24,6 +30,17 @@
       "assets/**/*",
       "package.json"
     ],
+    "linux": {
+      "icon": "assets/icon.png",
+      "maintainer": "BitChord Team <team@bitchord.app>",
+      "target": [
+        "AppImage",
+        "deb",
+        "tar.gz"
+      ],
+      "category": "AudioVideo",
+      "syncDesktopName": true
+    },
     "win": {
       "icon": "assets/icon.ico",
       "target": [
