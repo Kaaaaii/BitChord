@@ -135,6 +135,22 @@ function getDecks(): Promise<Deck[]> {
       // Media from another origin is silent inside an AudioContext unless it
       // is fetched with CORS (prompt §6, the Web Audio caveat).
       audio.crossOrigin = 'anonymous';
+      // Keep audio element attached to the DOM so Chromium's MediaSession, SMTC, and MPRIS stay attached
+      if (typeof document !== 'undefined') {
+        audio.style.position = 'fixed';
+        audio.style.width = '0px';
+        audio.style.height = '0px';
+        audio.style.opacity = '0';
+        audio.style.pointerEvents = 'none';
+        const attach = () => {
+          if (!audio.isConnected) {
+            const root = document.body || document.documentElement;
+            root?.appendChild(audio);
+          }
+        };
+        if (document.body || document.documentElement) attach();
+        else document.addEventListener('DOMContentLoaded', attach, { once: true });
+      }
       const engine = new YouTubeEngine(audio);
       const deck: Deck = { engine, audio, gain: 1 };
       engine.onFatal = (videoId, message) => {
@@ -739,10 +755,22 @@ function bindElement(deck: Deck, n: number) {
     });
   }
   element.addEventListener('play', () => {
-    if (inFront() && 'mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+    if (inFront() && 'mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'playing';
+      updatePositionState();
+    }
+  });
+  element.addEventListener('playing', () => {
+    if (inFront() && 'mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'playing';
+      updatePositionState();
+    }
   });
   element.addEventListener('pause', () => {
-    if (inFront() && 'mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+    if (inFront() && 'mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'paused';
+      updatePositionState();
+    }
   });
 }
 
@@ -755,15 +783,19 @@ function updateMediaSession(track: NowPlaying | null) {
   const session = navigator.mediaSession;
   if (!track) {
     session.metadata = null;
+    session.playbackState = 'none';
     return;
   }
   session.metadata = new MediaMetadata({
     title: track.title,
     artist: track.artist,
+    album: 'BitChord',
     artwork: track.artworkUrl
       ? [96, 256, 512].map((px) => ({ src: artworkAtPixels(track.artworkUrl!, px), sizes: `${px}x${px}` }))
       : [],
   });
+  session.playbackState = usePlayer.getState().status === 'playing' ? 'playing' : 'paused';
+  updatePositionState();
 
   if (handlersBound) return;
   handlersBound = true;
@@ -778,6 +810,7 @@ function updateMediaSession(track: NowPlaying | null) {
   // Through the store, so a party hears about them like any other press.
   handle('play', () => getAudio()?.paused && player().togglePlay());
   handle('pause', () => getAudio()?.paused === false && player().togglePlay());
+  handle('stop', () => !getAudio()?.paused && player().togglePlay());
   handle('seekto', (details) => {
     if (details.seekTime !== undefined) player().seek(details.seekTime);
   });

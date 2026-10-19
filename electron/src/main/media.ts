@@ -106,13 +106,13 @@ export class MediaControlsManager {
   }
 
   public registerGlobalShortcuts(): void {
-    // OS Dedicated Media Keys
+    // Note: OS dedicated hardware media keys (Play/Pause, Next, Previous) are handled
+    // cooperatively by Chromium's HardwareMediaKeyHandling and mapped directly to
+    // navigator.mediaSession (Windows SMTC / Linux MPRIS / macOS Now Playing).
+    // Registering them with globalShortcut would use OS RegisterHotKey, which aggressively
+    // suppresses the OS media popup/overlay.
+    // We only register custom fallback hotkeys for keyboards without dedicated media keys:
     try {
-      globalShortcut.register('MediaPlayPause', () => this.sendAction('toggle'));
-      globalShortcut.register('MediaNextTrack', () => this.sendAction('next'));
-      globalShortcut.register('MediaPreviousTrack', () => this.sendAction('prev'));
-
-      // Additional fallback keyboard hotkeys
       globalShortcut.register('CommandOrControl+Alt+Space', () => this.sendAction('toggle'));
       globalShortcut.register('CommandOrControl+Alt+Right', () => this.sendAction('next'));
       globalShortcut.register('CommandOrControl+Alt+Left', () => this.sendAction('prev'));

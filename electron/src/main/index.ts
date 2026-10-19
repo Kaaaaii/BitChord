@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, shell, WebContentsView } from 'electron';
+import { app, BrowserWindow, ipcMain, powerSaveBlocker, session, shell, WebContentsView } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,9 +27,20 @@ let bridgeHandler: BridgeHandler | null = null;
 let mediaManager: MediaControlsManager | null = null;
 let trayManager: TrayManager | null = null;
 let isQuitting = false;
+let powerBlockerId: number | null = null;
+
+// Set app name and user model ID for OS media integration (SMTC on Windows, MPRIS on Linux)
+app.setName('BitChord');
+app.setAppUserModelId('com.music.bitchord');
+
+// Command-line flags to guarantee Chromium MediaSession and hardware media key services
+// stay fully active and unthrottled in background or hidden window states
+app.commandLine.appendSwitch('enable-features', 'MediaSessionService,HardwareMediaKeyHandling');
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
 
 // Ensure single instance and proper taskbar icon registration on Windows
-app.setAppUserModelId('com.music.bitchord');
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
@@ -231,6 +242,13 @@ ipcMain.handle('window:isMaximized', () => {
 });
 
 app.whenReady().then(async () => {
+  // Prevent OS from sleeping or suspending the application while audio/media plays
+  try {
+    powerBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+  } catch (err) {
+    console.warn('Failed to start powerSaveBlocker:', err);
+  }
+
   await createWindow();
 
   app.on('activate', () => {
@@ -247,6 +265,10 @@ app.on('before-quit', () => {
 });
 
 app.on('will-quit', () => {
+  if (powerBlockerId !== null && powerSaveBlocker.isStarted(powerBlockerId)) {
+    powerSaveBlocker.stop(powerBlockerId);
+    powerBlockerId = null;
+  }
   mediaManager?.unregisterAll();
   trayManager?.destroy();
   void discordManager?.disconnect();

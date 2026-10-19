@@ -1,5 +1,5 @@
 // src/main/index.ts
-import { app as app2, BrowserWindow as BrowserWindow4, ipcMain, session, shell, WebContentsView } from "electron";
+import { app as app2, BrowserWindow as BrowserWindow4, ipcMain, powerSaveBlocker, session, shell, WebContentsView } from "electron";
 import fs3 from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -1065,9 +1065,6 @@ var MediaControlsManager = class {
   }
   registerGlobalShortcuts() {
     try {
-      globalShortcut.register("MediaPlayPause", () => this.sendAction("toggle"));
-      globalShortcut.register("MediaNextTrack", () => this.sendAction("next"));
-      globalShortcut.register("MediaPreviousTrack", () => this.sendAction("prev"));
       globalShortcut.register("CommandOrControl+Alt+Space", () => this.sendAction("toggle"));
       globalShortcut.register("CommandOrControl+Alt+Right", () => this.sendAction("next"));
       globalShortcut.register("CommandOrControl+Alt+Left", () => this.sendAction("prev"));
@@ -1192,7 +1189,13 @@ var bridgeHandler = null;
 var mediaManager = null;
 var trayManager = null;
 var isQuitting = false;
+var powerBlockerId = null;
+app2.setName("BitChord");
 app2.setAppUserModelId("com.music.bitchord");
+app2.commandLine.appendSwitch("enable-features", "MediaSessionService,HardwareMediaKeyHandling");
+app2.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+app2.commandLine.appendSwitch("disable-renderer-backgrounding");
+app2.commandLine.appendSwitch("disable-background-timer-throttling");
 var gotTheLock = app2.requestSingleInstanceLock();
 if (!gotTheLock) {
   app2.quit();
@@ -1351,6 +1354,11 @@ ipcMain.handle("window:isMaximized", () => {
   return mainWindow?.isMaximized() ?? false;
 });
 app2.whenReady().then(async () => {
+  try {
+    powerBlockerId = powerSaveBlocker.start("prevent-app-suspension");
+  } catch (err) {
+    console.warn("Failed to start powerSaveBlocker:", err);
+  }
   await createWindow();
   app2.on("activate", () => {
     if (mainWindow) {
@@ -1364,6 +1372,10 @@ app2.on("before-quit", () => {
   isQuitting = true;
 });
 app2.on("will-quit", () => {
+  if (powerBlockerId !== null && powerSaveBlocker.isStarted(powerBlockerId)) {
+    powerSaveBlocker.stop(powerBlockerId);
+    powerBlockerId = null;
+  }
   mediaManager?.unregisterAll();
   trayManager?.destroy();
   void discordManager?.disconnect();

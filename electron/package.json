@@ -6,10 +6,42 @@
   "type": "module",
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch --onSuccess \"electron .\"",
+    "dev": "tsup --watch",
     "start": "electron .",
+    "dist": "tsup && electron-builder --win",
+    "dist:dir": "tsup && electron-builder --win --dir",
     "typecheck": "tsc --noEmit",
     "cache-web": "node scripts/cache-web.mjs"
+  },
+  "build": {
+    "appId": "com.music.bitchord",
+    "productName": "BitChord",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BitChord"
+    }
   },
   "dependencies": {
     "@xhayper/discord-rpc": "^1.2.6"
@@ -17,6 +49,7 @@
   "devDependencies": {
     "@types/node": "^22.10.1",
     "electron": "^34.2.0",
+    "electron-builder": "^26.15.3",
     "tsup": "^8.3.6",
     "typescript": "^5.7.3"
   }

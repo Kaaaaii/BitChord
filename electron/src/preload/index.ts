@@ -121,12 +121,52 @@ const polyfillScript = `
     }
   });
 
-  // Track playback state for OS Taskbar and media controls. The player's audio is a
-  // detached Audio element (its events never reach document, and the muted artwork
-  // videos would report falsely), so follow mediaSession.playbackState, which the
-  // player sets as playback starts and stops.
+  // 4. Ensure all HTMLAudioElement instances are anchored to the document DOM so
+  // Chromium's AudioFocusManager and MediaSessionService recognize them as active page media,
+  // preventing SMTC (Windows) and MPRIS (Linux) from dropping or losing session sync.
+  const OrigAudio = window.Audio;
+  if (OrigAudio) {
+    window.Audio = function() {
+      const audio = new (Function.prototype.bind.apply(OrigAudio, [null].concat(Array.prototype.slice.call(arguments))))();
+      const anchor = function() {
+        try {
+          const root = document.body || document.documentElement;
+          if (root && !audio.isConnected) {
+            audio.style.position = 'fixed';
+            audio.style.width = '0px';
+            audio.style.height = '0px';
+            audio.style.opacity = '0';
+            audio.style.pointerEvents = 'none';
+            root.appendChild(audio);
+          }
+        } catch (e) {}
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', anchor, { once: true });
+      } else {
+        setTimeout(anchor, 0);
+      }
+      return audio;
+    };
+    window.Audio.prototype = OrigAudio.prototype;
+  }
+
+  // 5. Track playback state and ensure OS media player (Windows SMTC, Linux MPRIS)
+  // always detects BitChord and stays responsive.
   if (navigator.mediaSession) {
     const session = navigator.mediaSession;
+
+    // Set initial metadata so OS controls register the application immediately
+    try {
+      if (!session.metadata && typeof MediaMetadata !== 'undefined') {
+        session.metadata = new MediaMetadata({
+          title: 'BitChord',
+          artist: 'BitChord Music',
+          album: 'BitChord',
+        });
+      }
+    } catch (e) {}
+
     const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(session), 'playbackState');
     if (descriptor && descriptor.get && descriptor.set) {
       Object.defineProperty(session, 'playbackState', {
@@ -139,11 +179,8 @@ const polyfillScript = `
         },
       });
     }
-  }
 
-  // Report the current song title (from mediaSession.metadata) for the tray menu.
-  if (navigator.mediaSession) {
-    const session = navigator.mediaSession;
+    // Report the current song title (from mediaSession.metadata) for the tray menu.
     const mdDescriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(session), 'metadata');
     if (mdDescriptor && mdDescriptor.get && mdDescriptor.set) {
       Object.defineProperty(session, 'metadata', {
@@ -160,34 +197,56 @@ const polyfillScript = `
         },
       });
     }
-  }
 
-  // Media Session: the page registers its play/pause/next/previous handlers with
-  // setActionHandler, which can't be read back. Keep a copy as they are registered
-  // so the taskbar buttons can invoke the same handlers the OS media UI uses.
-  const mediaHandlers = {};
-  if (navigator.mediaSession) {
-    const session = navigator.mediaSession;
+    // Media Session: keep copy of registered handlers
+    const mediaHandlers = {};
     const original = session.setActionHandler.bind(session);
     session.setActionHandler = function(action, handler) {
       if (handler) mediaHandlers[action] = handler;
       else delete mediaHandlers[action];
       return original(action, handler);
     };
-  }
 
-  // Returns true if the page had a handler for the action.
-  window.__bitchord_mediaAction = function(action) {
-    const session = navigator.mediaSession;
-    let name = action;
-    if (action === 'toggle') name = session && session.playbackState === 'playing' ? 'pause' : 'play';
-    else if (action === 'next') name = 'nexttrack';
-    else if (action === 'prev') name = 'previoustrack';
-    const handler = mediaHandlers[name];
-    if (!handler) return false;
-    try { handler({ action: name }); } catch (e) { console.error('Media action error:', e); }
-    return true;
-  };
+    // Pre-register standard actions so Windows SMTC / Linux MPRIS buttons are active immediately
+    const standardActions = ['play', 'pause', 'previoustrack', 'nexttrack', 'stop', 'seekto', 'seekbackward', 'seekforward'];
+    for (let i = 0; i < standardActions.length; i++) {
+      const act = standardActions[i];
+      try {
+        original(act, function(details) {
+          const handler = mediaHandlers[act];
+          if (handler) {
+            try { handler(details); } catch (e) { console.error('Media action error:', e); }
+          } else {
+            const audio = document.querySelector('audio');
+            if (!audio) return;
+            if (act === 'play') void audio.play();
+            else if (act === 'pause' || act === 'stop') audio.pause();
+            else if (act === 'seekbackward') audio.currentTime = Math.max(0, audio.currentTime - 10);
+            else if (act === 'seekforward') audio.currentTime = Math.min(audio.duration || Infinity, audio.currentTime + 10);
+          }
+        });
+      } catch (e) {}
+    }
+
+    // Returns true if the page had a handler for the action or handled it directly
+    window.__bitchord_mediaAction = function(action) {
+      let name = action;
+      if (action === 'toggle') name = session && session.playbackState === 'playing' ? 'pause' : 'play';
+      else if (action === 'next') name = 'nexttrack';
+      else if (action === 'prev') name = 'previoustrack';
+      const handler = mediaHandlers[name];
+      if (handler) {
+        try { handler({ action: name }); } catch (e) { console.error('Media action error:', e); }
+        return true;
+      }
+      const audio = document.querySelector('audio');
+      if (audio) {
+        if (name === 'play') { void audio.play(); return true; }
+        if (name === 'pause') { audio.pause(); return true; }
+      }
+      return false;
+    };
+  }
 })();
 `;
 
