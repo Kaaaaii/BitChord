@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, powerSaveBlocker, session, shell, WebContentsView } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, powerSaveBlocker, session, shell, WebContentsView } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,6 +28,7 @@ let mediaManager: MediaControlsManager | null = null;
 let trayManager: TrayManager | null = null;
 let isQuitting = false;
 let powerBlockerId: number | null = null;
+let currentTheme: 'system' | 'dark' | 'light' = 'system';
 
 // Set app name and user model ID for OS media integration (SMTC on Windows, MPRIS on Linux)
 app.setName('BitChord');
@@ -239,6 +240,38 @@ ipcMain.on('window:close', () => {
 
 ipcMain.handle('window:isMaximized', () => {
   return mainWindow?.isMaximized() ?? false;
+});
+
+function updateAppTheme(theme: 'system' | 'dark' | 'light'): void {
+  currentTheme = theme;
+  nativeTheme.themeSource = theme;
+  const isDark = theme === 'dark' || (theme === 'system' && nativeTheme.shouldUseDarkColors);
+  mainWindow?.setBackgroundColor(isDark ? '#1f1f1f' : '#ffffff');
+  sendToTitlebar('theme:change', { theme });
+  if (pageView && !pageView.webContents.isDestroyed()) {
+    pageView.webContents.send('theme:change', { theme });
+  }
+}
+
+ipcMain.handle('theme:get', () => {
+  return currentTheme;
+});
+
+ipcMain.on('theme:set', (_event, { theme }: { theme: 'system' | 'dark' | 'light' }) => {
+  if (theme === 'system' || theme === 'dark' || theme === 'light') {
+    updateAppTheme(theme);
+  }
+});
+
+nativeTheme.on('updated', () => {
+  if (currentTheme === 'system') {
+    const isDark = nativeTheme.shouldUseDarkColors;
+    mainWindow?.setBackgroundColor(isDark ? '#1f1f1f' : '#ffffff');
+    sendToTitlebar('theme:change', { theme: 'system' });
+    if (pageView && !pageView.webContents.isDestroyed()) {
+      pageView.webContents.send('theme:change', { theme: 'system' });
+    }
+  }
 });
 
 app.whenReady().then(async () => {

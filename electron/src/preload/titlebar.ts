@@ -24,9 +24,20 @@ const css = `
     background: #1f1f1f;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     -webkit-app-region: drag;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    justify-content: space-between;
+    padding-right: 12px;
   }
   @media (prefers-color-scheme: light) {
-    .bar { background: #ffffff; border-bottom-color: rgba(0, 0, 0, 0.08); }
+    body:not([data-theme="dark"]) .bar { background: #ffffff; border-bottom-color: rgba(0, 0, 0, 0.08); }
+  }
+  body[data-theme="light"] .bar {
+    background: #ffffff;
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+  body[data-theme="dark"] .bar {
+    background: #1f1f1f;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
   }
   .lights {
     display: inline-flex;
@@ -35,6 +46,59 @@ const css = `
     padding-left: 14px;
     -webkit-app-region: no-drag;
   }
+  .actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    -webkit-app-region: no-drag;
+  }
+  .theme-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 0;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  }
+  .theme-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+  }
+  .theme-btn:active {
+    transform: scale(0.92);
+  }
+  body[data-theme="light"] .theme-btn {
+    color: rgba(0, 0, 0, 0.65);
+  }
+  body[data-theme="light"] .theme-btn:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: #000000;
+  }
+  @media (prefers-color-scheme: light) {
+    body:not([data-theme="dark"]) .theme-btn {
+      color: rgba(0, 0, 0, 0.65);
+    }
+    body:not([data-theme="dark"]) .theme-btn:hover {
+      background: rgba(0, 0, 0, 0.08);
+      color: #000000;
+    }
+  }
+  .theme-icon-sun { display: none; }
+  .theme-icon-moon { display: block; }
+  body[data-theme="light"] .theme-icon-moon { display: none; }
+  body[data-theme="light"] .theme-icon-sun { display: block; }
+  @media (prefers-color-scheme: light) {
+    body:not([data-theme="dark"]) .theme-icon-moon { display: none; }
+    body:not([data-theme="dark"]) .theme-icon-sun { display: block; }
+  }
+  body[data-theme="dark"] .theme-icon-sun { display: none; }
+  body[data-theme="dark"] .theme-icon-moon { display: block; }
   .btn {
     display: inline-flex;
     align-items: center;
@@ -88,20 +152,67 @@ const buttons = `
   </div>
 `;
 
+const themeButton = `
+  <div class="actions">
+    <button class="theme-btn" id="theme-toggle" aria-label="Toggle Theme" title="Toggle theme">
+      <!-- Sun icon for light mode (shows when dark mode is active to toggle to light, or vice-versa) -->
+      <svg class="theme-icon-sun" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+      <!-- Moon icon -->
+      <svg class="theme-icon-moon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
+  </div>
+`;
+
+let currentThemeSetting: 'system' | 'dark' | 'light' = 'system';
+
+function isCurrentlyDark(): boolean {
+  if (currentThemeSetting === 'dark') return true;
+  if (currentThemeSetting === 'light') return false;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function updateThemeDom(theme: 'system' | 'dark' | 'light'): void {
+  currentThemeSetting = theme;
+  if (theme && theme !== 'system') {
+    document.body.setAttribute('data-theme', theme);
+  } else {
+    document.body.removeAttribute('data-theme');
+  }
+}
+
 function setup(): void {
   const style = document.createElement('style');
   style.textContent = css;
   document.head.appendChild(style);
 
-  // On macOS the native traffic lights are drawn by the OS on top of this bar.
-  document.body.innerHTML = `<div class="bar" id="bar">${isDarwin ? '' : buttons}</div>`;
+  // Left side: Mac-style traffic lights (if not Darwin). Right side: Theme toggle.
+  const leftHtml = isDarwin ? '<div></div>' : buttons;
+  document.body.innerHTML = `<div class="bar" id="bar">${leftHtml}${themeButton}</div>`;
 
   document.getElementById('close')?.addEventListener('click', () => ipcRenderer.send('window:close'));
   document.getElementById('minimize')?.addEventListener('click', () => ipcRenderer.send('window:minimize'));
   document.getElementById('maximize')?.addEventListener('click', () => ipcRenderer.send('window:maximize'));
   document.getElementById('bar')?.addEventListener('dblclick', (e) => {
-    if ((e.target as HTMLElement).closest('.lights')) return;
+    if ((e.target as HTMLElement).closest('.lights') || (e.target as HTMLElement).closest('.actions')) return;
     ipcRenderer.send('window:maximize');
+  });
+
+  document.getElementById('theme-toggle')?.addEventListener('click', () => {
+    const nextTheme = isCurrentlyDark() ? 'light' : 'dark';
+    updateThemeDom(nextTheme);
+    ipcRenderer.send('theme:set', { theme: nextTheme });
   });
 
   ipcRenderer.invoke('window:isMaximized').then((isMax: boolean) => {
@@ -112,6 +223,14 @@ function setup(): void {
   });
   ipcRenderer.on('window:focus', (_e, { isFocused }: { isFocused: boolean }) => {
     document.body.setAttribute('data-blurred', isFocused ? 'false' : 'true');
+  });
+
+  ipcRenderer.invoke('theme:get').then((theme: 'system' | 'dark' | 'light') => {
+    updateThemeDom(theme);
+  }).catch(() => {});
+
+  ipcRenderer.on('theme:change', (_e, { theme }: { theme: 'system' | 'dark' | 'light' }) => {
+    updateThemeDom(theme);
   });
 }
 

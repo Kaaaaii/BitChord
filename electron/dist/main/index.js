@@ -1,5 +1,5 @@
 // src/main/index.ts
-import { app as app2, BrowserWindow as BrowserWindow4, ipcMain, powerSaveBlocker, session, shell, WebContentsView } from "electron";
+import { app as app2, BrowserWindow as BrowserWindow4, ipcMain, nativeTheme as nativeTheme3, powerSaveBlocker, session, shell, WebContentsView } from "electron";
 import fs3 from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -1190,6 +1190,7 @@ var mediaManager = null;
 var trayManager = null;
 var isQuitting = false;
 var powerBlockerId = null;
+var currentTheme = "system";
 app2.setName("BitChord");
 app2.setAppUserModelId("com.music.bitchord");
 app2.commandLine.appendSwitch("enable-features", "MediaSessionService,HardwareMediaKeyHandling");
@@ -1352,6 +1353,34 @@ ipcMain.on("window:close", () => {
 });
 ipcMain.handle("window:isMaximized", () => {
   return mainWindow?.isMaximized() ?? false;
+});
+function updateAppTheme(theme) {
+  currentTheme = theme;
+  nativeTheme3.themeSource = theme;
+  const isDark = theme === "dark" || theme === "system" && nativeTheme3.shouldUseDarkColors;
+  mainWindow?.setBackgroundColor(isDark ? "#1f1f1f" : "#ffffff");
+  sendToTitlebar("theme:change", { theme });
+  if (pageView && !pageView.webContents.isDestroyed()) {
+    pageView.webContents.send("theme:change", { theme });
+  }
+}
+ipcMain.handle("theme:get", () => {
+  return currentTheme;
+});
+ipcMain.on("theme:set", (_event, { theme }) => {
+  if (theme === "system" || theme === "dark" || theme === "light") {
+    updateAppTheme(theme);
+  }
+});
+nativeTheme3.on("updated", () => {
+  if (currentTheme === "system") {
+    const isDark = nativeTheme3.shouldUseDarkColors;
+    mainWindow?.setBackgroundColor(isDark ? "#1f1f1f" : "#ffffff");
+    sendToTitlebar("theme:change", { theme: "system" });
+    if (pageView && !pageView.webContents.isDestroyed()) {
+      pageView.webContents.send("theme:change", { theme: "system" });
+    }
+  }
 });
 app2.whenReady().then(async () => {
   try {

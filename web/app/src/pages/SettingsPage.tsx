@@ -10,6 +10,7 @@ import { useYtAuth } from '@/extension/useYtAuth';
 import { useParty } from '@/party/useParty';
 import { useHistorySettings } from '@/playback/historyReporting';
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
+import { useUi } from '@/state/ui';
 import { AppleMusicIntegration, AppleMusicToggles, CanvasToggle, DiscordIntegration, LyricSourcesAccess, SpotifyIntegration, Toggle } from './IntegrationSettings';
 import { settingsUi } from './settingsStyles';
 
@@ -72,10 +73,38 @@ export default function SettingsPage() {
         ? 'Not connected'
         : null;
 
+  const theme = useUi((s) => s.theme);
+  const setTheme = useUi((s) => s.setTheme);
+
   return (
     <div className={settingsUi.centered}>
       <PageHeader title="Settings" />
       <div className={settingsUi.body}>
+        <h2 className={settingsUi.sectionHeader}>Appearance</h2>
+        <section className={settingsUi.group}>
+          <Toggle
+            label="Dark Mode"
+            detail="Switch between BitChord dark appearance and classic light mode."
+            checked={theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches)}
+            onChange={(isDark) => setTheme(isDark ? 'dark' : 'light')}
+          />
+          <label className={settingsUi.controlRow}>
+            <span className={settingsUi.rowText}>
+              <span>Theme</span>
+              <span className={settingsUi.rowDetail}>Match system preference, force dark, or force light.</span>
+            </span>
+            <select
+              className={settingsUi.select}
+              value={theme}
+              onChange={(e) => setTheme(e.currentTarget.value as 'system' | 'dark' | 'light')}
+            >
+              <option value="system">Auto (System)</option>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
+          </label>
+        </section>
+
         <h2 className={settingsUi.sectionHeader}>Account & Integrations</h2>
         <section className={settingsUi.group}>
           <div className={settingsUi.integration}>

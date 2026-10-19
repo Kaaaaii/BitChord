@@ -23,7 +23,13 @@ import_electron.contextBridge.exposeInMainWorld("__bitchord_ipc", {
 import_electron.contextBridge.exposeInMainWorld("bitchordDesktop", {
   isElectron: true,
   version: "1.0.0",
-  platform: process.platform
+  platform: process.platform,
+  setTheme: (theme) => {
+    import_electron.ipcRenderer.send("theme:set", { theme });
+  },
+  getTheme: () => {
+    return import_electron.ipcRenderer.invoke("theme:get");
+  }
 });
 var polyfillScript = `
 (function() {
@@ -264,5 +270,127 @@ import_electron.ipcRenderer.on("media:action", (_event, action) => {
       audio.pause();
     }
   }).catch((err) => console.error("Failed to dispatch media action:", err));
+});
+var themeSetupScript = `
+(function() {
+  const THEME_KEY = 'bitchord:theme';
+
+  function applyTheme(theme) {
+    const root = document.documentElement;
+    if (theme === 'system') {
+      root.removeAttribute('data-theme');
+    } else {
+      root.setAttribute('data-theme', theme);
+    }
+  }
+
+  // Ensure CSS tokens exist for explicit data-theme='light' and data-theme='dark'
+  const styleId = 'bitchord-theme-tokens';
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = \`
+      :root[data-theme='light'] {
+        color-scheme: light !important;
+        --pageBG: #ffffff !important;
+        --pageBG-rgb: 255, 255, 255 !important;
+        --systemPrimary: #000000e0 !important;
+        --systemSecondary: #0000008f !important;
+        --systemTertiary: #0000007a !important;
+        --systemQuaternary: #0000001a !important;
+        --systemQuinary: #0000000d !important;
+        --keyColor: #d60017 !important;
+        --keyColor-rgb: 214, 0, 23 !important;
+        --keyColorBG: #d60017 !important;
+        --selectionColor: #d60017 !important;
+        --glassMaterialBackground: #f5f5f78c !important;
+        --glassMaterialShadowColor: #0000001a !important;
+        --systemStandardThinMaterialSover: #f6f6f67a !important;
+        --systemStandardThickMaterialSover: #f6f6f6b8 !important;
+        --systemHeaderMaterialSover: #ffffffcc !important;
+        --navSidebarSelectedState: #3c3c431a !important;
+        --tracklistHoverColor: #0000000f !important;
+        --shelfBG: #0000000d !important;
+        --opaqueShelfBG: #f2f2f2 !important;
+        --footerBg: #fbfbfb !important;
+        --genericJoeColor: #ebebeb !important;
+        --segmentedControlBG: #7676801f !important;
+        --segmentedControlSelectedBG: #ffffff !important;
+        --button-pill-color: #ffffff !important;
+        --button-pill-background-color: #000000 !important;
+        --containerInnerStroke: #000000 !important;
+        --containerInnerStrokeAlpha: 0.1 !important;
+        --skeleton-fill: #0000000f !important;
+        --skeleton-shimmer: #ffffff99 !important;
+      }
+      :root[data-theme='dark'] {
+        color-scheme: dark !important;
+        --pageBG: #1f1f1f !important;
+        --pageBG-rgb: 31, 31, 31 !important;
+        --systemPrimary: #ffffffeb !important;
+        --systemSecondary: #ffffffa3 !important;
+        --systemTertiary: #ffffff66 !important;
+        --systemQuaternary: #ffffff1a !important;
+        --systemQuinary: #ffffff0d !important;
+        --keyColor: #fa586a !important;
+        --keyColor-rgb: 250, 88, 106 !important;
+        --keyColorBG: #fa233b !important;
+        --selectionColor: #c11b2e !important;
+        --glassMaterialBackground: #26262899 !important;
+        --glassMaterialShadowColor: #00000033 !important;
+        --systemStandardThinMaterialSover: #28282880 !important;
+        --systemStandardThickMaterialSover: #282828b3 !important;
+        --systemHeaderMaterialSover: #1e1e1ecc !important;
+        --navSidebarSelectedState: #ffffff0d !important;
+        --tracklistHoverColor: #ffffff0f !important;
+        --shelfBG: #ffffff0d !important;
+        --opaqueShelfBG: #2b2b2b !important;
+        --footerBg: #323232 !important;
+        --genericJoeColor: #323232 !important;
+        --segmentedControlBG: #7676803d !important;
+        --segmentedControlSelectedBG: #636366 !important;
+        --button-pill-color: #000000 !important;
+        --button-pill-background-color: #ffffff !important;
+        --containerInnerStroke: #ffffff !important;
+        --containerInnerStrokeAlpha: 0.25 !important;
+        --skeleton-fill: #ffffff12 !important;
+        --skeleton-shimmer: #ffffff14 !important;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          color-scheme: dark;
+          --pageBG: #1f1f1f;
+        }
+      }
+    \`;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  const initialTheme = localStorage.getItem(THEME_KEY) || 'system';
+  applyTheme(initialTheme);
+})();
+`;
+try {
+  import_electron.webFrame.executeJavaScript(themeSetupScript);
+} catch (err) {
+  console.error("Failed to inject theme setup script:", err);
+}
+import_electron.ipcRenderer.on("theme:change", (_event, { theme }) => {
+  try {
+    localStorage.setItem("bitchord:theme", theme);
+  } catch {
+  }
+  const expr = `
+    (function() {
+      const root = document.documentElement;
+      if (${JSON.stringify(theme)} === 'system') {
+        root.removeAttribute('data-theme');
+      } else {
+        root.setAttribute('data-theme', ${JSON.stringify(theme)});
+      }
+    })();
+  `;
+  void import_electron.webFrame.executeJavaScript(expr).catch(() => {
+  });
 });
 //# sourceMappingURL=index.cjs.map
