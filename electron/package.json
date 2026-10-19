@@ -31,7 +31,7 @@
       "package.json"
     ],
     "linux": {
-      "icon": "assets/icon.png",
+      "icon": "assets/icons",
       "maintainer": "BitChord Team <team@bitchord.app>",
       "target": [
         "AppImage",
@@ -39,7 +39,11 @@
         "tar.gz"
       ],
       "category": "AudioVideo",
-      "syncDesktopName": true
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "bitchord-desktop"
+        }
+      }
     },
     "win": {
       "icon": "assets/icon.ico",
