@@ -1191,8 +1191,11 @@ var trayManager = null;
 var isQuitting = false;
 var powerBlockerId = null;
 var currentTheme = "system";
-app2.setName("BitChord");
+app2.setName("bitchord");
 app2.setAppUserModelId("com.music.bitchord");
+if (process.platform === "linux") {
+  app2.setDesktopName("bitchord.desktop");
+}
 app2.commandLine.appendSwitch("enable-features", "MediaSessionService,HardwareMediaKeyHandling");
 app2.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 app2.commandLine.appendSwitch("disable-renderer-backgrounding");
@@ -1247,14 +1250,17 @@ async function createWindow() {
   discordManager.subscribeState((data) => broadcastBridgeEvent({ event: "discord.state", data }));
   const preloadPath = path.join(__dirname, "../preload/index.cjs");
   const titlebarPreloadPath = path.join(__dirname, "../preload/titlebar.cjs");
-  const iconPath = process.platform === "win32" ? path.resolve(__dirname, "../../assets/icon.ico") : path.resolve(__dirname, "../../assets/icon.png");
+  const resolvedIconPath = process.platform === "win32" ? path.resolve(__dirname, "../../assets/icon.ico") : path.resolve(__dirname, "../../assets/icon.png");
+  const fallbackIconPath = path.resolve(app2.getAppPath(), "assets", process.platform === "win32" ? "icon.ico" : "icon.png");
+  const iconPath = fs3.existsSync(resolvedIconPath) ? resolvedIconPath : fs3.existsSync(fallbackIconPath) ? fallbackIconPath : void 0;
   mainWindow = new BrowserWindow4({
     width: 1280,
     height: 800,
     minWidth: 800,
     minHeight: 600,
     title: "BitChord",
-    icon: fs3.existsSync(iconPath) ? iconPath : void 0,
+    icon: iconPath,
+    ...process.platform === "linux" ? { wmClass: "bitchord" } : {},
     backgroundColor: "#1f1f1f",
     frame: false,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",

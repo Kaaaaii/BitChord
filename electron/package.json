@@ -1,6 +1,6 @@
 {
   "name": "bitchord-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Desktop Electron shell for BitChord with native extension bridge, Discord RPC, and media controls",
   "author": "BitChord Team <team@bitchord.app>",
   "homepage": "https://bitchord-8bw.pages.dev",
@@ -41,7 +41,7 @@
       "category": "AudioVideo",
       "desktop": {
         "entry": {
-          "StartupWMClass": "bitchord-desktop"
+          "StartupWMClass": "bitchord"
         }
       }
     },

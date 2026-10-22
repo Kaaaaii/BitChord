@@ -31,8 +31,11 @@ let powerBlockerId: number | null = null;
 let currentTheme: 'system' | 'dark' | 'light' = 'system';
 
 // Set app name and user model ID for OS media integration (SMTC on Windows, MPRIS on Linux)
-app.setName('BitChord');
+app.setName('bitchord');
 app.setAppUserModelId('com.music.bitchord');
+if (process.platform === 'linux') {
+  app.setDesktopName('bitchord.desktop');
+}
 
 // Command-line flags to guarantee Chromium MediaSession and hardware media key services
 // stay fully active and unthrottled in background or hidden window states
@@ -105,9 +108,11 @@ async function createWindow(): Promise<BrowserWindow> {
   const preloadPath = path.join(__dirname, '../preload/index.cjs');
   const titlebarPreloadPath = path.join(__dirname, '../preload/titlebar.cjs');
 
-  const iconPath = process.platform === 'win32'
+  const resolvedIconPath = process.platform === 'win32'
     ? path.resolve(__dirname, '../../assets/icon.ico')
     : path.resolve(__dirname, '../../assets/icon.png');
+  const fallbackIconPath = path.resolve(app.getAppPath(), 'assets', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
+  const iconPath = fs.existsSync(resolvedIconPath) ? resolvedIconPath : (fs.existsSync(fallbackIconPath) ? fallbackIconPath : undefined);
 
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -115,7 +120,8 @@ async function createWindow(): Promise<BrowserWindow> {
     minWidth: 800,
     minHeight: 600,
     title: 'BitChord',
-    icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    icon: iconPath,
+    ...(process.platform === 'linux' ? { wmClass: 'bitchord' } : {}),
     backgroundColor: '#1f1f1f',
     frame: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
